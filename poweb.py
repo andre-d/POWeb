@@ -138,26 +138,21 @@ def powcheck(p, required_bits):
     """
     # sha256 the given value
     p = hashlib.sha256(p).digest()
-    # Check the required number of bits
-    for i in range(required_bits):
-        if not i % 8:
-            # If we are on a new byte of input, switch to that new byte
-            b = p[i/8]
-            b = int(b.encode('hex'), 16)
-        # Copy the byte so that we may preform a check on it
-        c = b
-        # Remove the last bit of the byte and shift left by one bit
-        #   thus discarding the bit we are working on currently
-        b &= 0b01111111
-        b *= 2
-        # Isolate the last bit and shift the bit all the way to the right
-        c &= 0b10000000
-        c /= 64
-        # If the bit was 0, the entire byte should be now 0
-        if c:
-            # If the byte was not 0, the solution is incorrect
+    i = 0
+    # Select all the bytes for the required bits in a loop
+    while (i * 8) < required_bits:
+        b = p[i]
+        b = int(b.encode('hex'), 16)
+        remaining = required_bits - (i * 8)
+        # If we have less than a byte left
+        if remaining < 8:
+            # Select only the (least sigificant) bits we want from b
+            a = (2**remaining) - 1
+            a <<= (8-remaining)
+            b &= a
+        if b:
             return False
-    # If we made it through all the required bits with them all being zero, the solution was correct
+        i += 1
     return True
 
 #@app.route('/test/')
