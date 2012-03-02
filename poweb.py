@@ -157,7 +157,7 @@ def powcheck(p, required_bits):
         if c:
             # If the byte was not 0, the solution is incorrect
             return False
-    # If we made it through all the required bits without any being zero, the solution was correct
+    # If we made it through all the required bits with them all being zero, the solution was correct
     return True
 
 #@app.route('/test/')
@@ -170,8 +170,8 @@ def test():
     while p is None or not powcheck(seed+p, int(d['length'])):
         i = i+1
         p = os.urandom(4)
-    hash = hashlib.sha256(p).hexdigest()
-    return '%s with the id %d is %s took %d' % (p.encode('hex'), int(d['pow_id']), hash, i)
+    hash = hashlib.sha256(seed+p).hexdigest()
+    return '%s with the id %s is %s took %d' % (p.encode('hex'), d['pow_id'], hash, i)
 
 @app.route('/submit', methods=['GET', 'POST'])
 @pow_required(10)
