@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>POWeb</title>
+        <script type="text/javascript" src="http://crypto.stanford.edu/sjcl/sjcl.js"></script>
+        <script type="text/javascript">
+            var x;
+            var proof;
+            var form;
+            var goal;
+            var event;
+            var iterations = 0; // For status
+
+            function setupPOW() {
+                /*
+                    Setup a proof of work problem from an ajax response event
+                */
+                if (x.readyState === 4) {
+                    if (x.status === 200) {
+                        proof = JSON.parse(x.responseText);
+                        proof.salt = sjcl.codec.hex.toBits(proof.salt);
+                        goal = sjcl.bitArray.clamp([0,0,0,0,0,0,0,0], proof.length);
+                        window.postMessage('pow','*');
+                    } else {
+                        alert('There was a problem with the request.');
+                    }
+                }
+            }
+
+            function do_pow(e) {
+                /* 
+                    Do at-most 500 iterations of a proof of work attempt
+                */
+                if(e.source != window) {return;}
+                var i=0;
+                var hash;
+                var rand;
+                var solved=false;
+                for(i=0;i<=500;i++) {
+                    rand = sjcl.random.randomWords(2, 0);
+                    hash = sjcl.bitArray.concat(proof.salt, rand)
+                    hash = sjcl.hash.sha256.hash(hash);
+                    hash = sjcl.bitArray.bitSlice(hash, 0, proof.length);
+                    if (sjcl.bitArray.equal(hash, goal)) {
+                        solved = true;
+                        break;
+                    }
+                }
+                iterations += i-1;
+                document.getElementById('status').textContent = iterations;
+                if(solved){
+                    form.action += "?pow_id="+proof.pow_id+"&pow="+sjcl.codec.hex.fromBits(rand);
+                    form.name.disabled = false;
+                    form.submit();
+                } else {
+                    // Give the browser control then come right back here
+                    window.postMessage('pow','*');
+                }
+            }
+
+            function post_form() {
+                form = document.forms["form"];
+                var url = form.action;
+                form.name.disabled = true;
+                form.gobutton.disabled = true;
+                x = new XMLHttpRequest();
+                x.onreadystatechange = setupPOW;
+                x.open("GET", url, false);
+                x.send();
+                return false;
+            }
+
+            function init() {
+                sjcl.random.startCollectors();
+                window.addEventListener('message', do_pow, false);
+            }
+        </script>
+    </head>
+    <body onLoad="init();">
+        <h1>POWeb</h1>
+        <h3>Proof of work based web serving.</h3>
+        <em>This is a proof of concept for proof of work based spam prevention</em>
+        <form method="post" id="form" action="/submit" onSubmit="return post_form();">
+            <label for="name">Name: </label><input type="text" name="name" value="test">
+            <input type="submit" name="gobutton" value="submit">
+        </form>
+        <div id="status" style="font-weight: bold;">
+        </div>
+    </body>
+</html>
